@@ -1,0 +1,14 @@
+{
+  "name": "smartbricks",
+  "version": "1.0.0",
+  "description": "Package for creating smart contracts with templates",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "jsrender": "^1.0.3"
+  }
+}
