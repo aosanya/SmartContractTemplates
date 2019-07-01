@@ -249,21 +249,25 @@ contract SupplyChain is AccessControl {
 
     function Harvest
     (
-        uint _upc,
-        address _originBeekeeperId,
-        string _originBeekeeperName,
-        string _originFarmInformation,
-        string _originFarmLatitude,
-        string _originFarmLongitude,
-        uint _quantity,
-        uint _productId,
-        string _productNotes,
-        uint _productPrice,
-        address _shipperId,
-        address _buyerId
+        uint upc,
+        address originBeekeeperId,
+        string originBeekeeperName,
+        string originFarmInformation,
+        string originFarmLatitude,
+        string originFarmLongitude,
+        uint quantity,
+        uint productId,
+        string productNotes,
+        uint productPrice,
+        address shipperId,
+        address buyerId
     )
     public
     {
+        require(has(HARVEST_ROLE, msg.sender, ""), "MISSING HARVEST_ROLE");
+
+
+
         require(Harvest_has_upc[_upc] == false, ERROR_HARVEST_ALREADY_EXISTS);
         //Set Counter Variable
         harvest_.sku = skuIndex;
@@ -289,8 +293,10 @@ contract SupplyChain is AccessControl {
 
         Harvest_has_upc[harvest_.upc] = true;
 
-        //Add permissions
-        addPermission(Harvestor_of_, msg.sender, bytes32(harvest_.upc));
+        //Add roles and permissions
+        
+        
+        addPermission(HARVESTER_OF_, msg.sender, bytes32(harvest_.upc));
 
         //Emit Events
         emit Harvested(harvest_.sku, harvest_.upc)
@@ -302,12 +308,16 @@ contract SupplyChain is AccessControl {
 
     function Order
     (
-        address _buyerId,
-        uint _upc,
-        uint _quantity
+        address buyerId,
+        uint upc,
+        uint quantity
     )
     public
     {
+
+
+
+
         require(Order_has_upc[_upc] == false, ERROR_ORDER_ALREADY_EXISTS);
         //Set Counter Variable
         order_.orderId = orderIdIndex;
@@ -323,8 +333,10 @@ contract SupplyChain is AccessControl {
 
         Order_has_upc[order_.upc] = true;
 
-        //Add permissions
-        addPermission(Order_of_, msg.sender, bytes32(order_.upc));
+        //Add roles and permissions
+        
+        
+        addPermission(ORDER_OF_, msg.sender, bytes32(order_.upc));
 
         //Emit Events
         emit PlacedOrder(order_.upc)
@@ -336,16 +348,21 @@ contract SupplyChain is AccessControl {
 
     function Quote
     (
-        uint _orderId,
-        uint _upc,
-        uint _price,
-        address _shipperId,
-        uint _shippingCost,
-        uint _shippingDownPayment,
-        uint _date
+        uint orderId,
+        uint upc,
+        uint price,
+        address shipperId,
+        uint shippingCost,
+        uint shippingDownPayment,
+        uint date
     )
     public
     {
+        require(has(HARVEST_ROLE, msg.sender, ""), "MISSING HARVEST_ROLE");
+
+
+        require(shippingDownPayment <= shippingCost , "SHIPPINGDOWNPAYMENT > SHIPPINGCOST)";
+
         require(Quote_has_orderId[_orderId] == false, ERROR_QUOTE_ALREADY_EXISTS);
         //Set Counter Variable
         quote_.quoteId = quoteIdIndex;
@@ -365,8 +382,10 @@ contract SupplyChain is AccessControl {
 
         Quote_has_orderId[quote_.orderId] = true;
 
-        //Add permissions
-        addPermission(Buyer_of_, buyerId, bytes32(quote_.orderId));
+        //Add roles and permissions
+        addPermission(BUYER_ROLE_, msg.sender);
+        
+        addPermission(BUYER_OF_, buyerId, bytes32(quote_.orderId));
 
         //Emit Events
         emit MadeQuote(quote_.orderId, quote_.price)
@@ -378,14 +397,19 @@ contract SupplyChain is AccessControl {
 
     function Purchase
     (
-        uint _quoteId,
-        uint _orderId,
-        uint _upc,
-        uint _shipmentId,
-        uint _date
+        uint quoteId,
+        uint orderId,
+        uint upc,
+        uint shipmentId,
+        uint date
     )
     public
     {
+        require(has(BUYER_ROLE_, msg.sender, ""), "MISSING BUYER_ROLE_");
+
+        require(has(BUYER_OF_ROLE, msg.sender, bytes32(purchase_.quoteId), "MISSING BUYER_OF_ROLE");
+
+
         require(Purchase_has_quoteId[_quoteId] == false, ERROR_PURCHASE_ALREADY_EXISTS);
         //Set Counter Variable
         purchase_.purchaseId = purchaseIdIndex;
@@ -403,8 +427,10 @@ contract SupplyChain is AccessControl {
 
         Purchase_has_quoteId[purchase_.quoteId] = true;
 
-        //Add permissions
-        addPermission(Shipper_of_, shipperId, bytes32(purchase_.quoteId));
+        //Add roles and permissions
+        
+        
+        addPermission(SHIPPER_OF_, shipperId, bytes32(purchase_.quoteId));
 
         //Emit Events
         emit Purchased(purchase_.purchaseId)
@@ -416,17 +442,21 @@ contract SupplyChain is AccessControl {
 
     function Shipment
     (
-        address _shipper,
-        uint _purchaseId,
-        uint _quoteId,
-        uint _orderId,
-        uint _upc,
-        uint _date,
-        bool _delivered,
-        uint _dateDelivered
+        address shipper,
+        uint purchaseId,
+        uint quoteId,
+        uint orderId,
+        uint upc,
+        uint date,
+        bool delivered,
+        uint dateDelivered
     )
     public
     {
+
+
+
+
         require(Shipment_has_purchaseId[_purchaseId] == false, ERROR_SHIPMENT_ALREADY_EXISTS);
         //Set Counter Variable
         shipment_.shipmentId = shipmentIdIndex;
@@ -447,8 +477,10 @@ contract SupplyChain is AccessControl {
 
         Shipment_has_purchaseId[shipment_.purchaseId] = true;
 
-        //Add permissions
-        addPermission(Reciever_of_, buyerId, bytes32(shipment_.purchaseId));
+        //Add roles and permissions
+        
+        
+        addPermission(RECIEVER_OF_, buyerId, bytes32(shipment_.purchaseId));
 
         //Emit Events
         emit Shipped(shipment_.shipmentId)
@@ -460,15 +492,19 @@ contract SupplyChain is AccessControl {
 
     function Delivery
     (
-        uint _shipmentId,
-        uint _purchaseId,
-        uint _quoteId,
-        uint _orderId,
-        uint _upc,
-        uint _date
+        uint shipmentId,
+        uint purchaseId,
+        uint quoteId,
+        uint orderId,
+        uint upc,
+        uint date
     )
     public
     {
+
+
+
+
         require(Delivery_has_shipmentId[_shipmentId] == false, ERROR_DELIVERY_ALREADY_EXISTS);
         //Set Counter Variable
         delivery_.deliveryId = deliveryIdIndex;
@@ -487,7 +523,9 @@ contract SupplyChain is AccessControl {
 
         Delivery_has_shipmentId[delivery_.shipmentId] = true;
 
-        //Add permissions
+        //Add roles and permissions
+        
+        
 
         //Emit Events
         emit Delivered(delivery_.deliveryId)
@@ -498,70 +536,7 @@ contract SupplyChain is AccessControl {
     }
 
 
-    // Define a function 'harvestItem' that allows a farmer to mark an harvest 'Harvested'
-    function harvestItem(uint _upc, address _originBeekeeperID, string _originBeekeeperName, string _originFarmInformation, string  _originFarmLatitude, string  _originFarmLongitude, uint _quantity, string  _productNotes) public
-    onlyHarvester()
-    {
-        require(harvestUPCs[_upc] == false, ERROR_HARVEST_ALREADY_EXISTS);
-        // Add the new harvest as part of Harvest
-        Harvest storage harvest_ = harvests[_upc];
-        harvest_.sku = sku;
-        harvest_.upc = _upc;
-        harvest_.ownerID = owner;
-        harvest_.originBeekeeperID = _originBeekeeperID;
-        harvest_.originBeekeeperName = _originBeekeeperName;
-        harvest_.originFarmInformation = _originFarmInformation;
-        harvest_.originFarmLatitude = _originFarmLatitude;
-        harvest_.originFarmLongitude = _originFarmLongitude;
-        harvest_.quantity = _quantity;
-        harvest_.productNotes = _productNotes;
-        harvest_.harvesterId = msg.sender;
 
-    }
-
-    function placeOrder(uint _upc, uint quantity) public
-    harvestExists(_upc)
-    // Anybody can Place an Order
-    {
-        Order storage order_ = orders[orderIdIndex];
-        order_.orderId = orderIdIndex;
-        order_.buyerId = msg.sender;
-        order_.upc = _upc;
-        order_.quantity = quantity;
-        orderIds[orderIdIndex] = true;
-        addPermission(ORDER_OF_ROLE, msg.sender, bytes32(orderIdIndex));
-
-        emit PlacedOrder(orderIdIndex, quantity);
-
-        orderIdIndex = orderIdIndex + 1;
-    }
-
-    // Define a function 'packItem' that allows a farmer to mark an harvest 'Packed'
-    function sendQuote(uint _orderId, uint _price, address _shipperId, uint _shippingCost,uint _shippingDownPayment) public
-    onlyHarvester()
-    orderExists(_orderId)
-    {
-
-        require(_shippingDownPayment <= _shippingCost, ERROR_SHIPPINGDOWNPAYMENT);
-        Order storage order_ = orders[_orderId];
-        require(has(HARVESTER_OF_ROLE, msg.sender, bytes32(order_.upc)), "Missing HARVESTER_OF_ROLE");
-        Quote storage quote_ = quotes[quoteIdIndex];
-        quote_.quoteId = quoteIdIndex;
-        quote_.orderId = _orderId;
-        quote_.upc = order_.upc;
-        quote_.price = _price;
-        quote_.shipperId = _shipperId;
-        quote_.shippingCost = _shippingCost;
-        quote_.shippingDownPayment = _shippingDownPayment;
-        quote_.date = now;
-        quoteIds[quoteIdIndex] = true;
-
-        addPermission(BUYER_ROLE, order_.buyerId, "");
-        addPermission(BUYER_OF_ROLE, order_.buyerId, bytes32(quote_.quoteId));
-
-        emit SentQuote(quoteIdIndex);
-        quoteIdIndex = quoteIdIndex + 1;
-    }
 
     // Define a function 'sellItem' that allows a farmer to mark an harvest 'ForSale'
     function purchase(uint _quoteId) public

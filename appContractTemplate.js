@@ -96,10 +96,15 @@ contract SupplyChain is AccessControl {
 {{for actions}}
     function {{:name}}
     (
-{{for properties ~len=properties.length}}{{if !isCounter && !isSender}}        {{:type}} _{{:name}}{{if #getIndex() < ~len -1}},{{/if}}\n{{/if}}{{/for}}    )
+{{for properties ~len=properties.length}}{{if !isCounter && !isSender}}        {{:type}} {{:name}}{{if #getIndex() < ~len -1}},{{/if}}\n{{/if}}{{/for}}    )
     public
     {
-        {{for properties ~action=#data}}{{if isUnique}}require({{:~action.name}}_has_{{:name}}[_{{:name}}] == false, ERROR_{{:~action.name.toUpperCase()}}_ALREADY_EXISTS);{{/if}}{{/for}}
+{{for requiredRoles}}        require(has({{:name}}, {{:grantedTo}}, ""), "MISSING {{:name}}");{{/for}}
+{{for properties ~action=#data}}{{if isUnique}}
+{{for ~action.requiredPermissions ~property=#data}}        require(has({{:name}}, {{:grantedTo}}, bytes32({{:~action.name.toLowerCase()}}_.{{:~property.name}}), "MISSING {{:name}}");
+{{/for}}{{/if}}{{/for}}
+{{for rules ~rule=#data}}        require({{for formulae}}{{:value}} {{/for}}, "{{:message}})";\n{{/for}}
+{{for properties ~action=#data}}{{if isUnique}}        require({{:~action.name}}_has_{{:name}}[_{{:name}}] == false, ERROR_{{:~action.name.toUpperCase()}}_ALREADY_EXISTS);{{/if}}{{/for}}
         //Set Counter Variable
 {{for properties ~action=#data}}{{if isCounter}}        {{:~action.name.toLowerCase()}}_.{{:name}} = {{:name}}Index;\n{{/if}}{{/for}}
         //Set Sender Variable
@@ -108,8 +113,10 @@ contract SupplyChain is AccessControl {
         //
 {{for properties ~action=#data}}{{if isCounter}}        {{:~action.name}}_has_{{:name}}[{{:~action.name.toLowerCase()}}_.{{:name}}] = true;\n{{else}}{{/if}}{{/for}}
 {{for properties ~action=#data}}{{if isUnique}}        {{:~action.name}}_has_{{:name}}[{{:~action.name.toLowerCase()}}_.{{:name}}] = true;\n{{else}}{{/if}}{{/for}}
-        //Add permissions{{for properties ~action=#data}}{{if isUnique}}
-{{for ~action.permissions ~property=#data}}        addPermission({{:name}}, {{:grantedTo}}, bytes32({{:~action.name.toLowerCase()}}_.{{:~property.name}}));
+        //Add roles and permissions
+        {{for awardedRoles}}addPermission({{:name}}, {{:grantedTo}});{{/for}}
+        {{for properties ~action=#data}}{{if isUnique}}
+{{for ~action.awardedPermissions ~property=#data}}        addPermission({{:name}}, {{:grantedTo}}, bytes32({{:~action.name.toLowerCase()}}_.{{:~property.name}}));
 {{/for}}{{/if}}{{/for}}
         //Emit Events
 {{for events ~action=#data}}        emit {{:name}}({{for properties ~len=properties.length}}{{:~action.name.toLowerCase()}}_.{{:name}}{{if #index < ~len -1}}, {{/if}}{{/for}}){{/for}}\n
@@ -118,54 +125,7 @@ contract SupplyChain is AccessControl {
     }
 {{/for}}
 
-    // Define a function 'harvestItem' that allows a farmer to mark an harvest 'Harvested'
-    function harvestItem(uint _upc, address _originBeekeeperID, string _originBeekeeperName, string _originFarmInformation, string  _originFarmLatitude, string  _originFarmLongitude, uint _quantity, string  _productNotes) public
-    onlyHarvester()
 
-
-    function placeOrder(uint _upc, uint quantity) public
-    harvestExists(_upc)
-    // Anybody can Place an Order
-    {
-        Order storage order_ = orders[orderIdIndex];
-        order_.orderId = orderIdIndex;
-        order_.buyerId = msg.sender;
-        order_.upc = _upc;
-        order_.quantity = quantity;
-        orderIds[orderIdIndex] = true;
-        addPermission(ORDER_OF_ROLE, msg.sender, bytes32(orderIdIndex));
-
-        emit PlacedOrder(orderIdIndex, quantity);
-
-        orderIdIndex = orderIdIndex + 1;
-    }
-
-    // Define a function 'packItem' that allows a farmer to mark an harvest 'Packed'
-    function sendQuote(uint _orderId, uint _price, address _shipperId, uint _shippingCost,uint _shippingDownPayment) public
-    onlyHarvester()
-    orderExists(_orderId)
-    {
-
-        require(_shippingDownPayment <= _shippingCost, ERROR_SHIPPINGDOWNPAYMENT);
-        Order storage order_ = orders[_orderId];
-        require(has(HARVESTER_OF_ROLE, msg.sender, bytes32(order_.upc)), "Missing HARVESTER_OF_ROLE");
-        Quote storage quote_ = quotes[quoteIdIndex];
-        quote_.quoteId = quoteIdIndex;
-        quote_.orderId = _orderId;
-        quote_.upc = order_.upc;
-        quote_.price = _price;
-        quote_.shipperId = _shipperId;
-        quote_.shippingCost = _shippingCost;
-        quote_.shippingDownPayment = _shippingDownPayment;
-        quote_.date = now;
-        quoteIds[quoteIdIndex] = true;
-
-        addPermission(BUYER_ROLE, order_.buyerId, "");
-        addPermission(BUYER_OF_ROLE, order_.buyerId, bytes32(quote_.quoteId));
-
-        emit SentQuote(quoteIdIndex);
-        quoteIdIndex = quoteIdIndex + 1;
-    }
 
     // Define a function 'sellItem' that allows a farmer to mark an harvest 'ForSale'
     function purchase(uint _quoteId) public

@@ -52,9 +52,15 @@ exports.smartContract = {
              ]
             },
           ],
-         "permissions" : [
+         "awardedPermissions" : [
             {
-              "name" : "Harvestor_of_",
+              "name" : "HARVESTER_OF_",
+              "grantedTo" : "msg.sender",
+            },
+          ],
+          "requiredRoles" : [
+            {
+              "name" : "HARVEST_ROLE",
               "grantedTo" : "msg.sender",
             },
           ],
@@ -178,12 +184,13 @@ exports.smartContract = {
              ]
            }
           ],
-         "permissions" : [
+         "awardedPermissions" : [
             {
-              "name" : "Order_of_",
+              "name" : "ORDER_OF_",
               "grantedTo" : "msg.sender",
             },
           ],
+
          "properties" : [
             {
                 "key" : "orderId",
@@ -237,20 +244,43 @@ exports.smartContract = {
              ]
             }
           ],
-         "permissions" : [
+         "awardedPermissions" : [
             {
-              "name" : "Buyer_of_",
+              "name" : "BUYER_OF_",
               "grantedTo" : "buyerId"
             },
           ],
-         "properties" : [
+          "awardedRoles" : [
             {
-                "key" : "quoteId",
-                "name" : "quoteId",
-                "displayName" : "Quote Id",
-                "description" : "",
-                "type" : "uint",
-                "isCounter" : true
+              "name" : "BUYER_ROLE_",
+              "grantedTo" : "msg.sender",
+            },
+          ],
+          "requiredRoles" : [
+            {
+              "name" : "HARVEST_ROLE",
+              "grantedTo" : "msg.sender",
+            },
+          ],
+          "rules" : [
+            {
+              "formulae":
+              [
+                {"value" : "shippingDownPayment"},
+                {"value" : "<="},
+                {"value" : "shippingCost"},
+              ],
+              "message" : "SHIPPINGDOWNPAYMENT > SHIPPINGCOST"
+            }
+          ],
+          "properties" : [
+            {
+              "key" : "quoteId",
+              "name" : "quoteId",
+              "displayName" : "Quote Id",
+              "description" : "",
+              "type" : "uint",
+              "isCounter" : true
             },
             {
               "key" : "orderId",
@@ -315,10 +345,22 @@ exports.smartContract = {
                 "properties" : [{"name" : "purchaseId", "type" : "uint"}],
               }
             ],
-          "permissions" : [
+          "awardedPermissions" : [
             {
-              "name" : "Shipper_of_",
+              "name" : "SHIPPER_OF_",
               "grantedTo" : "shipperId"
+            },
+          ],
+          "requiredRoles" : [
+            {
+              "name" : "BUYER_ROLE_",
+              "grantedTo" : "msg.sender"
+            },
+          ],
+          "requiredPermissions" : [
+            {
+              "name" : "BUYER_OF_ROLE",
+              "grantedTo" : "msg.sender"
             },
           ],
           "properties" : [
@@ -379,9 +421,9 @@ exports.smartContract = {
               "properties" : [{"name" : "shipmentId", "type" : "uint"}],
             },
           ],
-         "permissions" : [
+         "awardedPermissions" : [
             {
-              "name" : "Reciever_of_",
+              "name" : "RECIEVER_OF_",
               "grantedTo" : "buyerId"
             },
           ],
