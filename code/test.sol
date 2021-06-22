@@ -262,7 +262,7 @@ contract SupplyChain is AccessControl {
         address shipperId,
         address buyerId
     )
-    public
+    public 
     {
         require(has(HARVEST_ROLE, msg.sender, ""), "MISSING HARVEST_ROLE");
 
@@ -274,6 +274,8 @@ contract SupplyChain is AccessControl {
 
         //Set Sender Variable
         harvest_.harvesterId = msg.sender;
+
+        //Get foreign references
 
         harvest_.upc = upc;
         harvest_.originBeekeeperId = originBeekeeperId;
@@ -292,6 +294,8 @@ contract SupplyChain is AccessControl {
         Harvest_has_sku[harvest_.sku] = true;
 
         Harvest_has_upc[harvest_.upc] = true;
+
+
 
         //Add roles and permissions
         
@@ -312,7 +316,7 @@ contract SupplyChain is AccessControl {
         uint upc,
         uint quantity
     )
-    public
+    public 
     {
 
 
@@ -324,6 +328,8 @@ contract SupplyChain is AccessControl {
 
         //Set Sender Variable
 
+        //Get foreign references
+
         order_.buyerId = buyerId;
         order_.upc = upc;
         order_.quantity = quantity;
@@ -332,6 +338,8 @@ contract SupplyChain is AccessControl {
         Order_has_orderId[order_.orderId] = true;
 
         Order_has_upc[order_.upc] = true;
+
+
 
         //Add roles and permissions
         
@@ -356,7 +364,7 @@ contract SupplyChain is AccessControl {
         uint shippingDownPayment,
         uint date
     )
-    public
+    public 
     {
         require(has(HARVEST_ROLE, msg.sender, ""), "MISSING HARVEST_ROLE");
 
@@ -368,6 +376,8 @@ contract SupplyChain is AccessControl {
         quote_.quoteId = quoteIdIndex;
 
         //Set Sender Variable
+
+        //Get foreign references
 
         quote_.orderId = orderId;
         quote_.upc = upc;
@@ -381,6 +391,8 @@ contract SupplyChain is AccessControl {
         Quote_has_quoteId[quote_.quoteId] = true;
 
         Quote_has_orderId[quote_.orderId] = true;
+
+
 
         //Add roles and permissions
         addPermission(BUYER_ROLE_, msg.sender);
@@ -403,7 +415,7 @@ contract SupplyChain is AccessControl {
         uint shipmentId,
         uint date
     )
-    public
+    public payable
     {
         require(has(BUYER_ROLE_, msg.sender, ""), "MISSING BUYER_ROLE_");
 
@@ -416,6 +428,9 @@ contract SupplyChain is AccessControl {
 
         //Set Sender Variable
 
+        //Get foreign references
+        Quote Storage quote_ = QuoteXquoteId[quoteId];
+
         purchase_.quoteId = quoteId;
         purchase_.orderId = orderId;
         purchase_.upc = upc;
@@ -426,6 +441,13 @@ contract SupplyChain is AccessControl {
         Purchase_has_purchaseId[purchase_.purchaseId] = true;
 
         Purchase_has_quoteId[purchase_.quoteId] = true;
+
+        //Transfer value
+        uint balance = msg.value
+        quote_.shipperId.transfer(quote_.shippingDownPayment);
+        if(balance > 0) {
+            msg.sender.transfer(balance);
+        }
 
         //Add roles and permissions
         
@@ -451,7 +473,7 @@ contract SupplyChain is AccessControl {
         bool delivered,
         uint dateDelivered
     )
-    public
+    public 
     {
 
 
@@ -462,6 +484,8 @@ contract SupplyChain is AccessControl {
         shipment_.shipmentId = shipmentIdIndex;
 
         //Set Sender Variable
+
+        //Get foreign references
 
         shipment_.shipper = shipper;
         shipment_.purchaseId = purchaseId;
@@ -476,6 +500,8 @@ contract SupplyChain is AccessControl {
         Shipment_has_shipmentId[shipment_.shipmentId] = true;
 
         Shipment_has_purchaseId[shipment_.purchaseId] = true;
+
+
 
         //Add roles and permissions
         
@@ -499,7 +525,7 @@ contract SupplyChain is AccessControl {
         uint upc,
         uint date
     )
-    public
+    public 
     {
 
 
@@ -510,6 +536,8 @@ contract SupplyChain is AccessControl {
         delivery_.deliveryId = deliveryIdIndex;
 
         //Set Sender Variable
+
+        //Get foreign references
 
         delivery_.shipmentId = shipmentId;
         delivery_.purchaseId = purchaseId;
@@ -523,6 +551,8 @@ contract SupplyChain is AccessControl {
 
         Delivery_has_shipmentId[delivery_.shipmentId] = true;
 
+
+
         //Add roles and permissions
         
         
@@ -533,117 +563,6 @@ contract SupplyChain is AccessControl {
         //Increament Counter
         deliveryIdIndex = deliveryIdIndex + 1;
 
-    }
-
-
-
-
-    // Define a function 'sellItem' that allows a farmer to mark an harvest 'ForSale'
-    function purchase(uint _quoteId) public
-    quoteExists(_quoteId)
-    onlyBuyer()
-    hasPermission(BUYER_OF_ROLE, msg.sender, bytes32(_quoteId) ,"Missing BUYER_OF_ROLE") payable
-    {
-        Quote storage quote_ = quotes[_quoteId];
-        Purchase storage purchase_ = purchases[purchaseIdIndex];
-        purchase_.quoteId = _quoteId;
-        purchase_.purchaseId = purchaseIdIndex;
-        purchase_.orderId = quote_.orderId;
-        purchase_.upc = quote_.upc;
-        purchase_.date = now;
-        purchaseIds[purchaseIdIndex] = true;
-
-        quote_.shipperId.transfer(quote_.shippingDownPayment);
-        if(msg.value > quote_.shippingDownPayment) {
-            msg.sender.transfer(msg.value - quote_.shippingDownPayment);
-        }
-
-        addPermission(SHIPPER_ROLE, quote_.shipperId, "");
-        addPermission(SHIPPER_OF_ROLE, quote_.shipperId, bytes32(purchase_.purchaseId));
-
-        emit Purchased(purchaseIdIndex);
-        purchaseIdIndex = purchaseIdIndex + 1;
-    }
-
-    // Define a function 'ship' that allows the harvester to mark an harvest 'Shipped'
-    // Use the above modifers to check if the harvest is sold
-    function ship(uint _purchaseId) public
-      purchaseExists(_purchaseId)
-      onlyShipper()
-      hasPermission(SHIPPER_OF_ROLE, msg.sender, bytes32(_purchaseId) ,"Missing SHIPPER_OF_ROLE")
-    {
-
-        Purchase storage purchase_ = purchases[_purchaseId];
-        Shipment storage shipment_ = shipments[shipmentIdIndex];
-        shipment_.shipmentId = shipmentIdIndex;
-        shipment_.purchaseId = _purchaseId;
-        shipment_.quoteId = purchase_.quoteId;
-        shipment_.orderId = purchase_.orderId;
-        shipment_.upc = purchase_.upc;
-        shipment_.shipper = msg.sender;
-        shipment_.date = now;
-        shipmentIds[shipmentIdIndex] = true;
-
-        Order storage order_ = orders[shipment_.orderId];
-        addPermission(RECIEVER_OF_ROLE, order_.buyerId, bytes32(shipment_.shipmentId));
-
-        emit Shipped(shipmentIdIndex);
-        shipmentIdIndex = shipmentIdIndex + 1;
-
-    }
-
-    // Define a function 'receiveItem' that allows the shipper to mark an harvest 'Received'
-    // Use the above modifiers to check if the harvest is shipped
-    function deliver(uint _shipmentId) public
-        shipmentExists(_shipmentId)
-        onlyBuyer()
-        hasPermission(RECIEVER_OF_ROLE, msg.sender, bytes32(_shipmentId) ,"Missing RECIEVER_OF_ROLE") payable
-    {
-
-        Shipment storage shipment_ = shipments[_shipmentId];
-        require(shipment_.delivered == false, ERROR_ALREADY_DELIVERED);
-
-        shipment_.delivered = true;
-        shipment_.dateDelivered = now;
-
-        Harvest storage harvest_ = harvests[shipment_.upc];
-        Quote storage quote_ = quotes[shipment_.quoteId];
-
-        //Pay shipping balance
-
-        if(quote_.shippingDownPayment > quote_.shippingCost) {
-            quote_.shipperId.transfer(quote_.shippingCost - quote_.shippingDownPayment);
-        }
-
-        harvest_.harvesterId.transfer(quote_.price);
-
-
-        uint256 balanceCost = quote_.price + quote_.shippingCost - quote_.shippingDownPayment;
-        if(msg.value > balanceCost) {
-            msg.sender.transfer(msg.value - balanceCost);
-        }
-
-        emit Delivered(_shipmentId);
-    }
-
-
-
-    function fetchDownpayment(uint _quoteId) public view returns
-    (
-    uint    downPayment
-    )
-    {
-        Quote storage quote_ = quotes[_quoteId];
-        downPayment = quote_.shippingDownPayment;
-    }
-
-    function fetchDeliveryBalance(uint _quoteId) public view returns
-    (
-    uint    balance
-    )
-    {
-        Quote storage quote_ = quotes[_quoteId];
-        balance = quote_.price + quote_.shippingCost - quote_.shippingDownPayment;
     }
 
 

@@ -97,7 +97,7 @@ contract SupplyChain is AccessControl {
     function {{:name}}
     (
 {{for properties ~len=properties.length}}{{if !isCounter && !isSender}}        {{:type}} {{:name}}{{if #getIndex() < ~len -1}},{{/if}}\n{{/if}}{{/for}}    )
-    public
+    public {{if isPayable}}payable{{/if}}
     {
 {{for requiredRoles}}        require(has({{:name}}, {{:grantedTo}}, ""), "MISSING {{:name}}");{{/for}}
 {{for properties ~action=#data}}{{if isUnique}}
@@ -109,10 +109,19 @@ contract SupplyChain is AccessControl {
 {{for properties ~action=#data}}{{if isCounter}}        {{:~action.name.toLowerCase()}}_.{{:name}} = {{:name}}Index;\n{{/if}}{{/for}}
         //Set Sender Variable
 {{for properties ~action=#data}}{{if isSender}}        {{:~action.name.toLowerCase()}}_.{{:name}} = msg.sender;\n{{/if}}{{/for}}
+        //Get foreign references
+{{for foreignKeys}}        {{:action}} Storage {{:action.toLowerCase()}}_ = {{:action}}X{{:reference}}[{{:property}}];\n{{/for}}
 {{for properties ~action=#data}}{{if !isCounter && !isSender}}        {{:~action.name.toLowerCase()}}_.{{:name}} = {{:name}};\n{{/if}}{{/for}}
         //
 {{for properties ~action=#data}}{{if isCounter}}        {{:~action.name}}_has_{{:name}}[{{:~action.name.toLowerCase()}}_.{{:name}}] = true;\n{{else}}{{/if}}{{/for}}
 {{for properties ~action=#data}}{{if isUnique}}        {{:~action.name}}_has_{{:name}}[{{:~action.name.toLowerCase()}}_.{{:name}}] = true;\n{{else}}{{/if}}{{/for}}
+{{if isPayable}}        //Transfer value
+        uint balance = msg.value
+{{for pay}}        {{:from}}_.{{:recipient}}.transfer({{:from}}_.{{:value}});{{/for}}
+        if(balance > 0) {
+            msg.sender.transfer(balance);
+        }{{/if}}
+
         //Add roles and permissions
         {{for awardedRoles}}addPermission({{:name}}, {{:grantedTo}});{{/for}}
         {{for properties ~action=#data}}{{if isUnique}}
@@ -124,117 +133,6 @@ contract SupplyChain is AccessControl {
 {{for properties ~action=#data}}{{if isCounter}}        {{:name}}Index = {{:name}}Index + 1;\n{{/if}}{{/for}}
     }
 {{/for}}
-
-
-
-    // Define a function 'sellItem' that allows a farmer to mark an harvest 'ForSale'
-    function purchase(uint _quoteId) public
-    quoteExists(_quoteId)
-    onlyBuyer()
-    hasPermission(BUYER_OF_ROLE, msg.sender, bytes32(_quoteId) ,"Missing BUYER_OF_ROLE") payable
-    {
-        Quote storage quote_ = quotes[_quoteId];
-        Purchase storage purchase_ = purchases[purchaseIdIndex];
-        purchase_.quoteId = _quoteId;
-        purchase_.purchaseId = purchaseIdIndex;
-        purchase_.orderId = quote_.orderId;
-        purchase_.upc = quote_.upc;
-        purchase_.date = now;
-        purchaseIds[purchaseIdIndex] = true;
-
-        quote_.shipperId.transfer(quote_.shippingDownPayment);
-        if(msg.value > quote_.shippingDownPayment) {
-            msg.sender.transfer(msg.value - quote_.shippingDownPayment);
-        }
-
-        addPermission(SHIPPER_ROLE, quote_.shipperId, "");
-        addPermission(SHIPPER_OF_ROLE, quote_.shipperId, bytes32(purchase_.purchaseId));
-
-        emit Purchased(purchaseIdIndex);
-        purchaseIdIndex = purchaseIdIndex + 1;
-    }
-
-    // Define a function 'ship' that allows the harvester to mark an harvest 'Shipped'
-    // Use the above modifers to check if the harvest is sold
-    function ship(uint _purchaseId) public
-      purchaseExists(_purchaseId)
-      onlyShipper()
-      hasPermission(SHIPPER_OF_ROLE, msg.sender, bytes32(_purchaseId) ,"Missing SHIPPER_OF_ROLE")
-    {
-
-        Purchase storage purchase_ = purchases[_purchaseId];
-        Shipment storage shipment_ = shipments[shipmentIdIndex];
-        shipment_.shipmentId = shipmentIdIndex;
-        shipment_.purchaseId = _purchaseId;
-        shipment_.quoteId = purchase_.quoteId;
-        shipment_.orderId = purchase_.orderId;
-        shipment_.upc = purchase_.upc;
-        shipment_.shipper = msg.sender;
-        shipment_.date = now;
-        shipmentIds[shipmentIdIndex] = true;
-
-        Order storage order_ = orders[shipment_.orderId];
-        addPermission(RECIEVER_OF_ROLE, order_.buyerId, bytes32(shipment_.shipmentId));
-
-        emit Shipped(shipmentIdIndex);
-        shipmentIdIndex = shipmentIdIndex + 1;
-
-    }
-
-    // Define a function 'receiveItem' that allows the shipper to mark an harvest 'Received'
-    // Use the above modifiers to check if the harvest is shipped
-    function deliver(uint _shipmentId) public
-        shipmentExists(_shipmentId)
-        onlyBuyer()
-        hasPermission(RECIEVER_OF_ROLE, msg.sender, bytes32(_shipmentId) ,"Missing RECIEVER_OF_ROLE") payable
-    {
-
-        Shipment storage shipment_ = shipments[_shipmentId];
-        require(shipment_.delivered == false, ERROR_ALREADY_DELIVERED);
-
-        shipment_.delivered = true;
-        shipment_.dateDelivered = now;
-
-        Harvest storage harvest_ = harvests[shipment_.upc];
-        Quote storage quote_ = quotes[shipment_.quoteId];
-
-        //Pay shipping balance
-
-        if(quote_.shippingDownPayment > quote_.shippingCost) {
-            quote_.shipperId.transfer(quote_.shippingCost - quote_.shippingDownPayment);
-        }
-
-        harvest_.harvesterId.transfer(quote_.price);
-
-
-        uint256 balanceCost = quote_.price + quote_.shippingCost - quote_.shippingDownPayment;
-        if(msg.value > balanceCost) {
-            msg.sender.transfer(msg.value - balanceCost);
-        }
-
-        emit Delivered(_shipmentId);
-    }
-
-
-
-    function fetchDownpayment(uint _quoteId) public view returns
-    (
-    uint    downPayment
-    )
-    {
-        Quote storage quote_ = quotes[_quoteId];
-        downPayment = quote_.shippingDownPayment;
-    }
-
-    function fetchDeliveryBalance(uint _quoteId) public view returns
-    (
-    uint    balance
-    )
-    {
-        Quote storage quote_ = quotes[_quoteId];
-        balance = quote_.price + quote_.shippingCost - quote_.shippingDownPayment;
-    }
-
 
 {{for actions}}
 {{for properties ~action=#data}}{{if isCounter}}    fetch{{:~action.name}}X{{:name}}({{:type}} _{{:name}}) public view verify{{:~action.name}}_has_{{:name}}(_{{:name}}) returns

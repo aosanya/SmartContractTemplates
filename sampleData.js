@@ -339,6 +339,7 @@ exports.smartContract = {
           "key" : "356a192b7913b04c54574d18c28d46e6395428ab_Action3",
           "name" : "Purchase",
           "description": "Buyer purchases honey",
+          "isPayable" : true,
           "events" : [
               {
                 "name" : "Purchased",
@@ -363,6 +364,13 @@ exports.smartContract = {
               "grantedTo" : "msg.sender"
             },
           ],
+          "pay" : [
+            {
+              "recipient" : "shipperId",
+              "value" : "shippingDownPayment",
+              "from" : "quote"
+            }
+          ],
           "properties" : [
             {
                 "key" : "purchaseId",
@@ -378,7 +386,8 @@ exports.smartContract = {
                 "displayName" : "Quote Id",
                 "description" : "",
                 "type" : "uint",
-                "isUnique" : true
+                "isUnique" : true,
+                "references" : "Quote"
             },
             {
               "key" : "orderId",
@@ -409,6 +418,13 @@ exports.smartContract = {
               "type" : "uint"
             },
           ],
+          "foreignKeys" : [
+            {
+              "action" : "Quote",
+              "property" : "quoteId",
+              "reference" : "quoteId"
+            }
+          ]
        },
        {
          "id" : 3,
